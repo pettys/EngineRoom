@@ -40,32 +40,34 @@ class Ship {
 class System {
 	public offset: Offset;
 	private _comps = <CompType[]>[];
+	private activePattern: SystemConfigurations.Pattern;
 	private _extents: Rect = new Rect(0,0,3,3);
 	public get extents() { return this._extents; }
 
-	private _currentFunctionName: string = null;
-	public get currentFunctionName() { return this._currentFunctionName; }
+	public get currentFunctionName() { return this.activePattern.name; }
 
 	constructor(private owner: Ship, offset: Offset){
 		this.offset = offset;
 		this.extents.enum(()=>this._comps.push(CompType.None));
+		this.activePattern = SystemConfigurations.nullPattern(this);
 	}
 	public setComp(type: CompType, place: Offset) {
 		this._comps[this.extents.indexOf(place)] = type;
-		var pattern = SystemConfigurations.findPattern(this);
-		switch(pattern) {
-			case SystemConfigurations.Pattern.None: this._currentFunctionName = null; break;
-			case SystemConfigurations.Pattern.MainPowerCore: this._currentFunctionName = 'Main Power Core'; break;
-			case SystemConfigurations.Pattern.Cannon: this._currentFunctionName = 'Cannon'; break;
-			case SystemConfigurations.Pattern.Shield: this._currentFunctionName = 'Shield'; break;
-			case SystemConfigurations.Pattern.Thruster: this._currentFunctionName = 'Thruster'; break;
-			default: this._currentFunctionName = '???'; break;
-		}
+		this.activePattern = SystemConfigurations.findPattern(this);
 		this.owner.onSystemChanged(this);
 	}
+	public getCompInfo(place: Offset): { type: CompType, active?: boolean, flip?: boolean} {
+		if(!this.extents.contains(place)) return { type: CompType.None };
+		var idx = this.extents.indexOf(place);
+		var attr = this.activePattern.compAttr[idx];
+		return {
+		 	type: this._comps[idx],
+			active: attr.active,
+			flip: attr.flip
+		};
+	}
 	public getComp(place: Offset): CompType {
-		if(!this.extents.contains(place)) return CompType.None;
-		return this._comps[this.extents.indexOf(place)];
+		return this.getCompInfo(place).type;
 	}
 	public toString() {
 		return this._extents.toString();
@@ -237,12 +239,15 @@ class EngineRoomRenderer {
 	}
 
 	private setSvgColor(svg: Node, color: string) {
-		(<SVGPathElement>svg.childNodes[0]).setAttributeNS(null, "fill", "#ff0000");
+		(<SVGPathElement>svg.childNodes[0]).setAttributeNS(null, "fill", color);
 	}
 
 	private renderComp(system: System, compOffset: Offset, compDiv: HTMLElement) {
 		var svg = compDiv.childNodes[0];
-		this.setSvgPath(svg, system.getComp(compOffset));
+		var comp = system.getCompInfo(compOffset);
+		compDiv.style.transform = comp.flip ? 'rotate(180deg)' : '';
+		this.setSvgPath(svg, comp.type);
+		this.setSvgColor(svg, comp.active ? '#ff0000' : '#040404');
 	}
 
 }

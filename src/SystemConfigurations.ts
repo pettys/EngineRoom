@@ -1,58 +1,90 @@
 
 module SystemConfigurations {
 
-	export enum Pattern {
-		None,
-		MainPowerCore,
-		Cannon,
-		Shield,
-		Thruster
+	export interface CompAttr {
+		// the component is arranged in a manner that it is actively doing something.
+		active: boolean;
+		// due to the way it's arranged, this component will look better if it's visually rotated 180 deg.
+		flip: boolean;
+	}
+
+	export interface Pattern {
+		name: string;
+		compAttr: CompAttr[];
+	}
+
+	export function nullPattern(sys: System): Pattern {
+		var pat = {
+			name: null,
+			compAttr: []
+		};
+		for(var i=0, ln=sys.extents.height * sys.extents.width; i<ln; i++){
+			pat.compAttr.push({active: false, flip: false});
+		}
+		return pat;
 	}
 
 	export function findPattern(sys: System) : Pattern {
-		if(isMainPowerCore(sys)) return Pattern.MainPowerCore;
-		if(isCannon(sys)) return Pattern.Cannon;
-		if(isShield(sys)) return Pattern.Shield;
-		if(isThruster(sys)) return Pattern.Thruster;
-		return Pattern.None;
+		var pattern = nullPattern(sys);
+		return isMainPowerCore(sys, pattern)
+		 || isCannon(sys, pattern)
+		 || isShield(sys, pattern)
+		 || isThruster(sys, pattern)
+		 || pattern;
 	}
 
-	function isThruster(sys: System): boolean {
+	function isThruster(sys: System, pat: Pattern): Pattern {
 		var hasThrusterCore = false;
-		sys.extents.trimBorder(0, 2, 0, 0).enum((o,i)=>{
+		sys.extents.enum((o,i)=>{
 			if(sys.getComp(o) === CompType.Field
 				&& sys.getComp(o.delta(1,0)) === CompType.Mass
-				&& sys.getComp(o.delta(2,0)) === CompType.Field)
+				&& sys.getComp(o.delta(2,0)) === CompType.Field) {
 				hasThrusterCore = true;
-		});
-		return hasThrusterCore;
-	}
-
-	function isShield(sys: System): boolean {
-		var leftFieldPairs: Offset[] = [];
-		sys.extents.trimBorder(1, 0).enum((o,i) => {
-			if(sys.getComp(o) === CompType.Field && sys.getComp(o.delta(1,0)) === CompType.Field) {
-				leftFieldPairs.push(o);
+				pat.compAttr[i].active = true;
+				pat.compAttr[i].flip = true;
+				pat.compAttr[i+1].active = true;
+				pat.compAttr[i+2].active = true;
 			}
 		});
-		return leftFieldPairs.length > 0;
+		return hasThrusterCore ? name(pat, 'Thruster') : null;
 	}
 
-	function isCannon(sys: System): boolean {
+	function name(pat: Pattern, name: string): Pattern {
+		pat.name = name;
+		return pat;
+	}
+
+	function isShield(sys: System, pat: Pattern): Pattern {
+		var leftFieldPairs: Offset[] = [];
+		sys.extents.enum((o,i) => {
+			if(sys.getComp(o) === CompType.Field && sys.getComp(o.delta(1,0)) === CompType.Field) {
+				leftFieldPairs.push(o);
+				pat.compAttr[i].active = true;
+				pat.compAttr[i+1].active = true;
+			}
+		});
+		return leftFieldPairs.length > 0 ? name(pat, 'Shield') : null;
+	}
+
+	function isCannon(sys: System, pat: Pattern): Pattern {
 		var centerMass: Offset = null;
 		var multipleMassCenters = false;
 
-		sys.extents.trimBorder(1, 0).enum((o,i)=> {
+		sys.extents.enum((o,i)=> {
 			if(sys.getComp(o) === CompType.Mass && sys.getComp(o.delta(0,-1)) === CompType.Accelerator) {
 				multipleMassCenters = !!centerMass;
 				centerMass = o;
 			}
 		});
 
-		return centerMass && !multipleMassCenters;
+		if(!centerMass || multipleMassCenters) return null;
+
+		pat.name = 'Cannon';
+		pat.compAttr[sys.extents.indexOf(centerMass)].active = true;
+		pat.compAttr[sys.extents.indexOf(centerMass.delta(0,-1))].active = true;
 	}
 
-	function isMainPowerCore(sys: System): boolean {
+	function isMainPowerCore(sys: System, pat: Pattern): Pattern {
 		var possibleMiddles = sys.extents.trimBorder();
 		var middle: Offset = null;
 		possibleMiddles.enum((o,i) => {
@@ -61,11 +93,11 @@ module SystemConfigurations {
 			}
 		});
 		if(!middle) {
-			return false;
+			return null;
 		}
 
 		var possibleRads = Rect.around(middle);
-		var radCount = 0;
+		var rads = <Offset[]> [];
 		var invalidCount = 0;
 		sys.extents.enum((o,i) => {
 			if(o.equals(middle)) return;
@@ -73,7 +105,7 @@ module SystemConfigurations {
 			switch(comp){
 				case CompType.Radiation:
 					if(possibleRads.contains(o)) {
-						radCount++;
+						rads.push(o);
 					} else {
 						invalidCount++;
 					}
@@ -84,7 +116,11 @@ module SystemConfigurations {
 			}
 		});
 
-		return invalidCount === 0 && radCount > 0;
+		if(invalidCount > 0 || rads.length === 0) return null;
+		pat.name = 'Main Power Core';
+		rads.push(middle);
+		rads.forEach(o => pat.compAttr[sys.extents.indexOf(o)].active = true);
+		return pat;
 	}
 
 }

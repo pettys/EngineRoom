@@ -19,6 +19,10 @@ div.comp {
 	border: 1px dashed #313131;
 	&:hover { border-color: #505060; }
 	position: absolute;
+	transition: transform .5s;
+	svg path {
+		transition: fill .5s;
+	}
 }
 div.system-panel {
 	position: absolute;
