@@ -1,0 +1,57 @@
+@engine-room-bg: #303030;
+body { background-color: #111; }
+#engine-room {
+	top: 10px;
+	left: 10px;
+	position: absolute;
+	border: 1px solid #555;
+	background-color: @engine-room-bg;
+	vertical-align: middle;
+	text-align: center;
+	font-family: Consolas, monospace;
+	color: #777;
+}
+div.system {
+	border: 1px solid #383840;
+	position: absolute;
+}
+div.comp {
+	border: 1px dashed #313131;
+	&:hover { border-color: #505060; }
+	position: absolute;
+}
+div.system-panel {
+	position: absolute;
+	background-color: darken(@engine-room-bg, 2%);
+	font-size: 10px;
+}
+#ship-menu {
+	position: absolute;
+	top: 10px;
+	width: 150px;
+	button { margin-bottom: 2px;}
+}
+.inventory-toggle-button {
+	width: 135px;
+	text-align: left;
+}
+button {
+	border: 2px solid #555;
+	background-color: #333;
+	font-family: Consolas, monospace;
+	font-weight: bold;
+	color: #777;
+	&:hover {
+		background-color: #339;
+		border: 2px solid #559;
+		cursor: pointer;
+	}
+	&:active {
+		background-color: #559;
+		border-color: #339;
+	}
+	&.toggle-active {
+		background-color: #353;
+		border: 2px solid #565;
+	}
+}
