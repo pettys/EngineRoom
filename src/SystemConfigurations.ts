@@ -11,6 +11,8 @@ module SystemConfigurations {
 	export interface Pattern {
 		name: string;
 		compAttr: CompAttr[];
+		// system locations (relative to this system) that this system can provide power to.
+		providesPower?: Offset[];
 	}
 
 	export function nullPattern(sys: System): Pattern {
@@ -18,7 +20,7 @@ module SystemConfigurations {
 			name: null,
 			compAttr: []
 		};
-		for(var i=0, ln=sys.extents.height * sys.extents.width; i<ln; i++){
+		for(var i=0, ln=sys.extents.placeCount; i<ln; i++){
 			pat.compAttr.push({active: false, flip: false});
 		}
 		return pat;
@@ -41,9 +43,9 @@ module SystemConfigurations {
 				&& sys.getComp(o.delta(2,0)) === CompType.Field) {
 				hasThrusterCore = true;
 				pat.compAttr[i].active = true;
-				pat.compAttr[i].flip = true;
 				pat.compAttr[i+1].active = true;
 				pat.compAttr[i+2].active = true;
+				pat.compAttr[i+2].flip = true;
 			}
 		});
 		return hasThrusterCore ? name(pat, 'Thruster') : null;
@@ -118,8 +120,12 @@ module SystemConfigurations {
 
 		if(invalidCount > 0 || rads.length === 0) return null;
 		pat.name = 'Main Power Core';
+		pat.providesPower = [];
 		rads.push(middle);
-		rads.forEach(o => pat.compAttr[sys.extents.indexOf(o)].active = true);
+		rads.forEach(o => {
+			pat.compAttr[sys.extents.indexOf(o)].active = true;
+			pat.providesPower.push(middle.deltaTo(o));
+		});
 		return pat;
 	}
 

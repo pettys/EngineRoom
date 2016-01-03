@@ -31,9 +31,48 @@ class Ship {
 		return sys;
 	}
 
+	// When a system changes, it can cascade other system changes; this variable
+	// tracks all changes so they can be de-duplicated and dispatched all at once.
+	private queuedSystemChanges: { [key:string]: Offset } = null;
 	// Called by a containing system when its contents have changed.
 	public onSystemChanged(source: System) {
-		bus.publish<IShipSystemChangedEvent>('ship', 'system-changed', { ship: this, offset: source.offset });
+		var shouldPublish: boolean;
+		if(this.queuedSystemChanges) {
+			shouldPublish = false;
+		} else {
+			shouldPublish = true;
+			this.queuedSystemChanges = {};
+		}
+
+		this.queuedSystemChanges[source.offset.toString()] = source.offset;
+		this.recalculateSystemPower();
+		if(shouldPublish) {
+			for(var key in this.queuedSystemChanges) {
+				bus.publish<IShipSystemChangedEvent>('ship', 'system-changed', { ship: this, offset: this.queuedSystemChanges[key] });
+			}
+			this.queuedSystemChanges = null;
+		}
+	}
+
+	private recalculateSystemPower() {
+		var len = this.extents.placeCount;
+		var hasPower: boolean[] = [];
+		for(var i=0; i<len; i++) hasPower[i] = false;
+		this.extents.enum((o,i)=> {
+			var sys = this.getSystemAtOffset(o);
+			var poweredOffsets = sys.providesPower;
+			if(poweredOffsets){
+				poweredOffsets.forEach(po => {
+					var target = o.add(po);
+					if(this.extents.contains(target)) {
+						hasPower[this.extents.indexOf(target)] = true;
+					}
+				})
+			}
+		});
+		this.extents.enum((o,i)=> {
+			this.getSystemAtOffset(o).isPowered = hasPower[i];
+		});
 	}
 }
 
@@ -42,9 +81,17 @@ class System {
 	private _comps = <CompType[]>[];
 	private activePattern: SystemConfigurations.Pattern;
 	private _extents: Rect = new Rect(0,0,3,3);
+	private _isPowered = false;
 	public get extents() { return this._extents; }
-
 	public get currentFunctionName() { return this.activePattern.name; }
+	public get providesPower() { return this.activePattern.providesPower; }
+	public get isPowered() { return this._isPowered; }
+	public set isPowered(value: boolean) {
+		if(value != this._isPowered) {
+			this._isPowered = value;
+			this.owner.onSystemChanged(this);
+		}
+	}
 
 	constructor(private owner: Ship, offset: Offset){
 		this.offset = offset;
@@ -60,6 +107,9 @@ class System {
 		if(!this.extents.contains(place)) return { type: CompType.None };
 		var idx = this.extents.indexOf(place);
 		var attr = this.activePattern.compAttr[idx];
+		if(!attr) {
+			console.log('!!!', place, idx, attr, this.activePattern);
+		}
 		return {
 		 	type: this._comps[idx],
 			active: attr.active,
@@ -171,6 +221,12 @@ class EngineRoomRenderer {
 	private updateSystem(offset: Offset) {
 		var systemDiv = document.getElementById(`${this.prefix} ${offset}`);
 		var system = this.room.ship.getSystemAtOffset(offset);
+
+		if(system.isPowered)
+			systemDiv.classList.add('powered');
+		else
+			systemDiv.classList.remove('powered');
+
 		system.extents.enum((o, i) => {
 			var compDiv = <HTMLElement> systemDiv.childNodes[i];
 			this.renderComp(system, o, compDiv);
@@ -182,6 +238,11 @@ class EngineRoomRenderer {
 	private renderSystem(system: System, target: Element) {
 		//var ox = this.cx*1.5, oy = this.cy*1.5;
 		var ox = 0, oy = 0;
+
+		if(system.isPowered)
+			target.classList.add('powered');
+		else
+			target.classList.remove('powered');
 
 		system.extents.enum((o, i) => {
 			var compDiv = document.createElement("div");
@@ -247,7 +308,7 @@ class EngineRoomRenderer {
 		var comp = system.getCompInfo(compOffset);
 		compDiv.style.transform = comp.flip ? 'rotate(180deg)' : '';
 		this.setSvgPath(svg, comp.type);
-		this.setSvgColor(svg, comp.active ? '#ff0000' : '#040404');
+		this.setSvgColor(svg, comp.active ? system.isPowered ? '#ff0000' : '#770000' : '#040404');
 	}
 
 }

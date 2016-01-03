@@ -12,22 +12,33 @@ body { background-color: #111; }
 	color: #777;
 }
 div.system {
+	@powered-bg: mix(@engine-room-bg, #ffff00, 97%);
 	border: 1px solid #383840;
 	position: absolute;
-}
-div.comp {
-	border: 1px dashed #313131;
-	&:hover { border-color: #505060; }
-	position: absolute;
-	transition: transform .5s;
-	svg path {
-		transition: fill .5s;
+	background-color: @engine-room-bg;
+	transition: background-color 1s;
+	&.powered {
+		background-color: @powered-bg;
+		border-color: mix(#383840, #444400, 97%);
 	}
-}
-div.system-panel {
-	position: absolute;
-	background-color: darken(@engine-room-bg, 2%);
-	font-size: 10px;
+	div.comp {
+		border: 1px dashed #313131;
+		&:hover { border-color: #505060; }
+		position: absolute;
+		transition: transform .5s;
+		svg path {
+			transition: fill .5s;
+		}
+	}
+	&.powered div.comp {
+		border-color: @powered-bg;
+		&:hover { border-color: #505060; }
+	}
+	div.system-panel {
+		position: absolute;
+		background-color: darken(@engine-room-bg, 2%);
+		font-size: 10px;
+	}
 }
 #ship-menu {
 	position: absolute;

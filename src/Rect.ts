@@ -9,6 +9,7 @@ class Rect {
 	public get bottom() { return this.b; }
 	public get width() { return this.right - this.left + 1; }
 	public get height() { return this.bottom - this.top + 1; }
+	public get placeCount() { return this.width * this.height; }
 
 	constructor(top: number, left: number, right: number, bottom: number) {
 		this.t = top; this.l = left; this.r = right; this.b = bottom;
@@ -62,7 +63,10 @@ class Offset {
 	public is(x:number,y:number){
 		return this.x===x && this.y===y;
 	}
+	public add(other: Offset): Offset { return new Offset(this.x+other.x, this.y+other.y); }
 	public delta(dx: number, dy: number) { return new Offset(this.x+dx, this.y+dy); }
+	// Provides and offset such that this + result = target.
+	public deltaTo(target: Offset): Offset { return new Offset(target.x - this.x, target.y - this.y); }
 	public toString() { return `(${this.x},${this.y})`; }
 	public equals(other: Offset) { return this.x == other.x && this.y == other.y; }
 }
