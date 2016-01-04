@@ -60,6 +60,10 @@ class Offset {
 	public get x(){return this._x;}
 	public get y(){return this._y;}
 	constructor(x:number, y:number){this._x = x; this._y = y;}
+
+	private static _zero = new Offset(0, 0);
+	public static get zero() { return Offset._zero; }
+
 	public is(x:number,y:number){
 		return this.x===x && this.y===y;
 	}

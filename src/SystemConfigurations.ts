@@ -13,6 +13,8 @@ module SystemConfigurations {
 		compAttr: CompAttr[];
 		// system locations (relative to this system) that this system can provide power to.
 		providesPower?: Offset[];
+		// system locations (relative to this system) that this system is shielding.
+		providesShield?: { to: Offset, level: number }[];
 	}
 
 	export function nullPattern(sys: System): Pattern {
@@ -59,13 +61,26 @@ module SystemConfigurations {
 	function isShield(sys: System, pat: Pattern): Pattern {
 		var leftFieldPairs: Offset[] = [];
 		sys.extents.enum((o,i) => {
-			if(sys.getComp(o) === CompType.Field && sys.getComp(o.delta(1,0)) === CompType.Field) {
-				leftFieldPairs.push(o);
-				pat.compAttr[i].active = true;
-				pat.compAttr[i+1].active = true;
+			if(sys.getComp(o) !== CompType.Field || sys.getComp(o.delta(1,0)) !== CompType.Field) {
+				return;
 			}
+			if(leftFieldPairs.some(prevOffset => prevOffset.delta(1,0).equals(o))) {
+				return;
+			}
+			leftFieldPairs.push(o);
+			pat.compAttr[i].active = true;
+			pat.compAttr[i+1].active = true;
 		});
-		return leftFieldPairs.length > 0 ? name(pat, 'Shield') : null;
+		if(leftFieldPairs.length === 0) {
+			return null;
+		}
+
+		name(pat, 'Shield');
+		pat.providesShield = [];
+		Rect.around(Offset.zero).enum((o,i) => {
+			pat.providesShield.push({ to: o, level: 1 });
+		});
+		return pat;
 	}
 
 	function isCannon(sys: System, pat: Pattern): Pattern {
@@ -84,6 +99,7 @@ module SystemConfigurations {
 		pat.name = 'Cannon';
 		pat.compAttr[sys.extents.indexOf(centerMass)].active = true;
 		pat.compAttr[sys.extents.indexOf(centerMass.delta(0,-1))].active = true;
+		return pat;
 	}
 
 	function isMainPowerCore(sys: System, pat: Pattern): Pattern {

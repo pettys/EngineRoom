@@ -46,6 +46,7 @@ class Ship {
 
 		this.queuedSystemChanges[source.offset.toString()] = source.offset;
 		this.recalculateSystemPower();
+		this.recalculateSystemShields();
 		if(shouldPublish) {
 			for(var key in this.queuedSystemChanges) {
 				bus.publish<IShipSystemChangedEvent>('ship', 'system-changed', { ship: this, offset: this.queuedSystemChanges[key] });
@@ -74,6 +75,27 @@ class Ship {
 			this.getSystemAtOffset(o).isPowered = hasPower[i];
 		});
 	}
+
+	private recalculateSystemShields() {
+		var len = this.extents.placeCount;
+		var shieldLevel: number[] = [];
+		for(var i=0; i<len; i++) shieldLevel[i] = 0;
+		this.extents.enum((o,i)=> {
+			var sys = this.getSystemAtOffset(o);
+			var shieldsProvided = sys.providesShield;
+			if(shieldsProvided && sys.isPowered) {
+				shieldsProvided.forEach(s => {
+					var target = o.add(s.to);
+					if(this.extents.contains(target)) {
+						shieldLevel[this.extents.indexOf(target)] += s.level;
+					}
+				})
+			}
+		});
+		this.extents.enum((o,i)=> {
+			this.getSystemAtOffset(o).shieldLevel = shieldLevel[i];
+		});
+	}
 }
 
 class System {
@@ -82,13 +104,22 @@ class System {
 	private activePattern: SystemConfigurations.Pattern;
 	private _extents: Rect = new Rect(0,0,3,3);
 	private _isPowered = false;
+	private _shieldLevel = 0;
 	public get extents() { return this._extents; }
 	public get currentFunctionName() { return this.activePattern.name; }
 	public get providesPower() { return this.activePattern.providesPower; }
+	public get providesShield() { return this.activePattern.providesShield; }
 	public get isPowered() { return this._isPowered; }
 	public set isPowered(value: boolean) {
 		if(value != this._isPowered) {
 			this._isPowered = value;
+			this.owner.onSystemChanged(this);
+		}
+	}
+	public get shieldLevel() { return this._shieldLevel; }
+	public set shieldLevel(value: number) {
+		if(value != this._shieldLevel) {
+			this._shieldLevel = value;
 			this.owner.onSystemChanged(this);
 		}
 	}
@@ -107,9 +138,6 @@ class System {
 		if(!this.extents.contains(place)) return { type: CompType.None };
 		var idx = this.extents.indexOf(place);
 		var attr = this.activePattern.compAttr[idx];
-		if(!attr) {
-			console.log('!!!', place, idx, attr, this.activePattern);
-		}
 		return {
 		 	type: this._comps[idx],
 			active: attr.active,
@@ -226,6 +254,12 @@ class EngineRoomRenderer {
 			systemDiv.classList.add('powered');
 		else
 			systemDiv.classList.remove('powered');
+
+		systemDiv.style.borderWidth = `${system.shieldLevel * 2}px`;
+		if(system.shieldLevel > 0)
+			systemDiv.classList.add('shielded');
+		else
+			systemDiv.classList.remove('shielded');
 
 		system.extents.enum((o, i) => {
 			var compDiv = <HTMLElement> systemDiv.childNodes[i];
