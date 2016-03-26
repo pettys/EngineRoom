@@ -23,6 +23,7 @@
     "buildOnSave": false,
     "files": [
         "src/bus.ts",
+        "src/EngineRoomRenderer.ts",
         "src/main.ts",
         "src/Rect.ts",
         "src/svg.ts",

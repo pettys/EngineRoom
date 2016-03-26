@@ -52,6 +52,13 @@ class Rect {
 
 		throw 'Rect.trimBorder should have 0, 1, 2, or 4 arguments.';
 	}
+
+	public setElementPosition(target: HTMLElement) {
+		target.style.left = `${this.left}px`;
+		target.style.top = `${this.top}px`;
+		target.style.width = `${this.width}px`;
+		target.style.height = `${this.height}px`;
+	}
 }
 
 class Offset {
